@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consultor D&D</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #d3d3d3; /* Cinza claro */
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+        }
+
+        .chat-container {
+            width: 100%;
+            max-width: 600px;
+            background-color: #fff; /* Fundo branco para o card */
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            overflow-y: auto;
+            height: 400px;
+            display: flex;
+            flex-direction: column;
+            margin-top: 20px;
+        }
+
+        .chat-bubble {
+            background-color: #f9f9f9; /* Fundo mais claro para a bolha */
+            border-radius: 15px;
+            padding: 10px;
+            margin: 10px 0;
+            max-width: 75%;
+            position: relative;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .chat-bubble::after {
+            content: '';
+            position: absolute;
+            top: 10px;
+            left: -10px;
+            width: 0;
+            height: 0;
+            border: 10px solid transparent;
+            border-right-color: #f9f9f9; /* Cor correspondente à bolha */
+            border-left: 0;
+            margin-top: -5px;
+        }
+
+        .chat-bubble.answer {
+            background-color: #ffeb3b;
+            align-self: flex-end;
+        }
+
+        .chat-bubble.answer::after {
+            left: auto;
+            right: -10px;
+            border-right-color: transparent;
+            border-left-color: #ffeb3b;
+        }
+
+        .input-container {
+            display: flex;
+            align-items: center; /* Alinha o botão e o input verticalmente ao centro */
+            justify-content: center; /* Centraliza o contêiner na tela */
+            width: 100%;
+            max-width: 600px;
+            margin-top: 20px;
+            gap: 10px; /* Espaço entre o input e o botão */
+        }
+
+        input[type="text"] {
+            width: 100%; /* Usa todo o espaço disponível */
+            border-radius: 10px;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+        }
+
+        button {
+            align-items: center; /* Alinha o botão e o input verticalmente ao centro */
+            justify-content: center; /* Centraliza o contêiner na tela */
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 10px;
+            background-color: #007bff;
+            color: #fff;
+            cursor: pointer;
+            flex-shrink: 0; /* Evita que o botão encolha */
+            height: 46px; /* Define uma altura consistente para alinhar com o input */
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        textarea {
+            width: 100%;
+            border-radius: 10px;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            resize: none;
+        }
+
+        .temporary-message {
+            background-color: #ffe082;
+            color: #000;
+            padding: 10px;
+            border-radius: 10px;
+            text-align: center;
+            margin-bottom: 20px;
+            max-width: 600px;
+        }
+
+        .logo {
+            max-width: 150px; /* Ajuste o tamanho da logo conforme necessário */
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Logo substituindo o título -->
+    <img src="https://logosmarcas.net/wp-content/uploads/2022/01/Dungeons-Dragons-Logo.png" alt="Logo Dungeons & Dragons" class="logo">
+
+    <!-- Área de input e botão para enviar pergunta -->
+    <div class="input-container">
+        <input type="text" id="question" name="question" placeholder="Digite sua pergunta...">
+        <button id="askButton">Enviar</button>
+    </div>
+
+    <!-- Container para o chat -->
+    <div class="chat-container"></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const temporaryMessage = document.createElement('div');
+            temporaryMessage.classList.add('temporary-message');
+            temporaryMessage.innerText = 'Eu sou o seu mais novo mestre, me pergunte o que quiser.';
+            document.body.prepend(temporaryMessage);
+    
+            setTimeout(() => {
+                temporaryMessage.remove();
+            }, 6000); // Remove a mensagem após 6 segundos
+    
+            // Verifique se .chat-container existe
+            const chatContainer = document.querySelector('.chat-container');
+            if (!chatContainer) {
+                console.error("Erro: .chat-container não encontrada!");
+                return;
+            }
+    
+            async function askQuestion() {
+                const question = document.getElementById('question').value;
+    
+                if (!question) {
+                    console.error("Erro: Nenhuma pergunta foi inserida.");
+                    return;
+                }
+    
+                try {
+                    const response = await fetch('http://127.0.0.1:5000/get-dnd-response', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ question })
+                    });
+    
+                    if (!response.ok) {
+                        throw new Error('Erro ao obter resposta. Tente novamente.');
+                    }
+    
+                    const data = await response.json();
+                    
+                    // Adiciona a pergunta do usuário ao chat
+                    addMessage(question, 'question'); 
+                    // Adiciona a resposta da API ao chat
+                    addMessage(data.answer, 'answer'); 
+    
+                } catch (error) {
+                    console.error('Erro ao obter resposta:', error);
+                    addMessage('Erro ao obter resposta. Verifique o console para mais detalhes.', 'error');
+                }
+    
+                document.getElementById('question').value = ''; // Limpa a área de texto
+            }
+    
+            function addMessage(text, type) {
+                const messageBubble = document.createElement('div');
+                messageBubble.classList.add('chat-bubble', type === 'answer' ? 'answer' : 'question');
+                messageBubble.innerText = text;
+                chatContainer.appendChild(messageBubble);
+                chatContainer.scrollTop = chatContainer.scrollHeight; // Rola para o final
+            }
+    
+            document.getElementById('askButton').addEventListener('click', askQuestion);
+        });
+    </script>
+</body>
+</html>
